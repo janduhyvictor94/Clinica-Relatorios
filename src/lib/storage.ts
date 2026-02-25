@@ -1,4 +1,16 @@
 import { format, eachDayOfInterval } from "date-fns";
+import { createClient } from '@supabase/supabase-js';
+
+// Conexão com o Supabase
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Verificação de segurança: Se as chaves estiverem vazias, o sistema vai avisar!
+if (!supabaseUrl || !supabaseKey) {
+  alert("⚠️ ATENÇÃO: As chaves do Supabase não foram encontradas! Verifique o arquivo .env");
+}
+
+export const supabase = createClient(supabaseUrl || "", supabaseKey || "");
 
 export interface DailyData {
   totalPacientes: number;
@@ -25,7 +37,7 @@ export interface DailyGoals {
   conversasIniciadas: number;
   conversasRespondidas: number;
   agendamentos: number;
-  seguidores: number; // AGORA TEM META DIÁRIA
+  seguidores: number;
 }
 
 export interface MonthlyGoals {
@@ -38,51 +50,71 @@ export interface MonthlyGoals {
 }
 
 export const defaultData: DailyData = {
-  totalPacientes: 0,
-  desmarcaram: 0,
-  novos: 0,
-  recorrentes: 0,
-  faturamento: 0,
-  procedimentos: "",
-  leadsTotal: 0,
-  leadsCampanha: 0,
-  leadsOrganico: 0,
-  leadsInstagram: 0,
-  seguidores: 0,
-  conversasIniciadas: 0,
-  conversasRespondidas: 0,
-  agendamentos: 0,
-  gastoTrafego: 0,
+  totalPacientes: 0, desmarcaram: 0, novos: 0, recorrentes: 0, faturamento: 0,
+  procedimentos: "", leadsTotal: 0, leadsCampanha: 0, leadsOrganico: 0,
+  leadsInstagram: 0, seguidores: 0, conversasIniciadas: 0, conversasRespondidas: 0,
+  agendamentos: 0, gastoTrafego: 0,
 };
 
 export const defaultDailyGoals: DailyGoals = {
-  totalPacientes: 0,
-  faturamento: 0,
-  leadsTotal: 0,
-  conversasIniciadas: 0,
-  conversasRespondidas: 0,
-  agendamentos: 0,
-  seguidores: 0, // VALOR PADRÃO ZERO
+  totalPacientes: 0, faturamento: 0, leadsTotal: 0, conversasIniciadas: 0,
+  conversasRespondidas: 0, agendamentos: 0, seguidores: 0,
 };
 
 export const defaultMonthlyGoals: MonthlyGoals = {
-  pacientes: 0,
-  faturamento: 0,
-  leads: 0,
-  agendamentos: 0,
-  seguidores: 0,
-  cac: 0,
+  pacientes: 0, faturamento: 0, leads: 0, agendamentos: 0, seguidores: 0, cac: 0,
 };
 
+// ==========================================
+// SINCRONIZAÇÃO DA NUVEM (Ao abrir o App)
+// ==========================================
+export async function syncFromCloud() {
+  try {
+    const { data: daily, error: errDaily } = await supabase.from('daily_data').select('*');
+    if (errDaily) {
+      console.error("Erro ao puxar daily_data:", errDaily);
+      alert("🛑 Erro ao baixar dados: " + errDaily.message);
+    } else if (daily) {
+      daily.forEach(row => localStorage.setItem(`daily_data_${row.date}`, JSON.stringify(row.data)));
+    }
+
+    const { data: goals, error: errGoals } = await supabase.from('app_goals').select('*');
+    if (errGoals) {
+      console.error("Erro ao puxar app_goals:", errGoals);
+    } else if (goals) {
+      goals.forEach(row => localStorage.setItem(`${row.id}_goals`, JSON.stringify(row.data)));
+    }
+    return true;
+  } catch (error) {
+    console.error("Erro ao sincronizar com a nuvem:", error);
+    return false;
+  }
+}
+
+// ==========================================
+// FUNÇÕES SÍNCRONAS (Navegador + Nuvem)
+// ==========================================
 export function loadDailyData(date: Date | string): DailyData {
   const dateStr = typeof date === "string" ? date : format(date, "yyyy-MM-dd");
   const saved = localStorage.getItem(`daily_data_${dateStr}`);
   return saved ? { ...defaultData, ...JSON.parse(saved) } : { ...defaultData };
 }
 
-export function saveDailyData(date: Date | string, data: DailyData) {
+// O NOSSO "DEDO-DURO" ESTÁ AQUI:
+export async function saveDailyData(date: Date | string, data: DailyData) {
   const dateStr = typeof date === "string" ? date : format(date, "yyyy-MM-dd");
   localStorage.setItem(`daily_data_${dateStr}`, JSON.stringify(data));
+  
+  try {
+    const { error } = await supabase.from('daily_data').upsert({ date: dateStr, data });
+    if (error) {
+      alert("🛑 ERRO DO SUPABASE: " + error.message);
+    } else {
+      alert("✅ SUCESSO! O dado chegou na nuvem!");
+    }
+  } catch (err) {
+    alert("🛑 ERRO GRAVE DE CONEXÃO: " + JSON.stringify(err));
+  }
 }
 
 export function loadDailyGoals(): DailyGoals {
@@ -90,8 +122,10 @@ export function loadDailyGoals(): DailyGoals {
   return saved ? { ...defaultDailyGoals, ...JSON.parse(saved) } : { ...defaultDailyGoals };
 }
 
-export function saveDailyGoals(goals: DailyGoals) {
+export async function saveDailyGoals(goals: DailyGoals) {
   localStorage.setItem("daily_goals", JSON.stringify(goals));
+  const { error } = await supabase.from('app_goals').upsert({ id: 'daily', data: goals });
+  if (error) alert("🛑 Erro ao salvar metas diárias: " + error.message);
 }
 
 export function loadMonthlyGoals(): MonthlyGoals {
@@ -99,8 +133,10 @@ export function loadMonthlyGoals(): MonthlyGoals {
   return saved ? { ...defaultMonthlyGoals, ...JSON.parse(saved) } : { ...defaultMonthlyGoals };
 }
 
-export function saveMonthlyGoals(goals: MonthlyGoals) {
+export async function saveMonthlyGoals(goals: MonthlyGoals) {
   localStorage.setItem("monthly_goals", JSON.stringify(goals));
+  const { error } = await supabase.from('app_goals').upsert({ id: 'monthly', data: goals });
+  if (error) alert("🛑 Erro ao salvar metas mensais: " + error.message);
 }
 
 export function loadDataRange(start: Date, end: Date): { date: string; data: DailyData }[] {
@@ -110,27 +146,16 @@ export function loadDataRange(start: Date, end: Date): { date: string; data: Dai
     return { date: dateStr, data: loadDailyData(dateStr) };
   }).filter(e => {
     const d = e.data;
-    return d.totalPacientes > 0 || d.faturamento > 0 || d.leadsTotal > 0 || d.agendamentos > 0 || d.procedimentos.length > 0;
+    return d.totalPacientes > 0 || d.faturamento > 0 || d.leadsTotal > 0 || d.agendamentos > 0 || d.procedimentos.length > 0 || d.gastoTrafego > 0 || d.seguidores > 0;
   });
 }
 
 export function sumDataRange(entries: { date: string; data: DailyData }[]) {
   const totals = {
-    totalPacientes: 0,
-    desmarcaram: 0,
-    novos: 0,
-    recorrentes: 0,
-    faturamento: 0,
-    leadsTotal: 0,
-    leadsCampanha: 0,
-    leadsOrganico: 0,
-    leadsInstagram: 0,
-    seguidores: 0,
-    conversasIniciadas: 0,
-    conversasRespondidas: 0,
-    agendamentos: 0,
-    gastoTrafego: 0,
-    diasComDados: entries.length,
+    totalPacientes: 0, desmarcaram: 0, novos: 0, recorrentes: 0, faturamento: 0,
+    leadsTotal: 0, leadsCampanha: 0, leadsOrganico: 0, leadsInstagram: 0,
+    seguidores: 0, conversasIniciadas: 0, conversasRespondidas: 0, agendamentos: 0,
+    gastoTrafego: 0, diasComDados: entries.length,
   };
 
   entries.forEach(e => {
