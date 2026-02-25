@@ -1,0 +1,144 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 30 25% 97%;
+    --foreground: 340 20% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 340 20% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 340 20% 15%;
+
+    --primary: 340 45% 55%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 340 25% 92%;
+    --secondary-foreground: 340 20% 25%;
+
+    --muted: 30 15% 93%;
+    --muted-foreground: 340 10% 45%;
+
+    --accent: 340 35% 88%;
+    --accent-foreground: 340 30% 25%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 210 70% 50%;
+    --info-foreground: 0 0% 100%;
+
+    --border: 340 15% 90%;
+    --input: 340 15% 90%;
+    --ring: 340 45% 55%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 340 20% 98%;
+    --sidebar-foreground: 340 20% 15%;
+    --sidebar-primary: 340 45% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 340 25% 92%;
+    --sidebar-accent-foreground: 340 20% 25%;
+    --sidebar-border: 340 15% 90%;
+    --sidebar-ring: 340 45% 55%;
+
+    --font-display: 'Playfair Display', serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  .dark {
+    --background: 340 15% 8%;
+    --foreground: 30 20% 95%;
+    --card: 340 15% 12%;
+    --card-foreground: 30 20% 95%;
+    --popover: 340 15% 12%;
+    --popover-foreground: 30 20% 95%;
+    --primary: 340 45% 60%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 340 20% 18%;
+    --secondary-foreground: 30 20% 90%;
+    --muted: 340 15% 16%;
+    --muted-foreground: 340 10% 60%;
+    --accent: 340 25% 20%;
+    --accent-foreground: 30 20% 90%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 152 50% 35%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 80% 45%;
+    --warning-foreground: 0 0% 100%;
+    --info: 210 60% 45%;
+    --info-foreground: 0 0% 100%;
+    --border: 340 15% 20%;
+    --input: 340 15% 20%;
+    --ring: 340 45% 60%;
+    --sidebar-background: 340 15% 10%;
+    --sidebar-foreground: 30 20% 95%;
+    --sidebar-primary: 340 45% 60%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 340 20% 18%;
+    --sidebar-accent-foreground: 30 20% 90%;
+    --sidebar-border: 340 15% 20%;
+    --sidebar-ring: 340 45% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer components {
+  .stat-card {
+    @apply bg-card rounded-xl p-5 border border-border shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  .stat-value {
+    @apply text-3xl font-bold text-foreground;
+    font-family: var(--font-display);
+  }
+
+  .stat-label {
+    @apply text-sm font-medium text-muted-foreground uppercase tracking-wider;
+  }
+
+  .section-title {
+    @apply text-lg font-semibold text-foreground;
+    font-family: var(--font-display);
+  }
+
+  .progress-bar-track {
+    @apply w-full h-2.5 rounded-full bg-muted overflow-hidden;
+  }
+
+  .progress-bar-fill {
+    @apply h-full rounded-full transition-all duration-500 ease-out;
+    background: linear-gradient(90deg, hsl(var(--primary)), hsl(340 55% 65%));
+  }
+
+  .input-metric {
+    @apply w-20 text-center border border-border rounded-lg px-2 py-1.5 text-sm font-medium bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:border-primary transition-colors;
+  }
+}
