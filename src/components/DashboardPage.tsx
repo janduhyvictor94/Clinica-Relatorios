@@ -5,7 +5,7 @@ import {
   Users, UserMinus, UserPlus, UserCheck,
   DollarSign, ClipboardList,
   Megaphone, Leaf, Instagram,
-  MessageCircle, MessageSquare, CalendarCheck,
+  CalendarCheck,
   TrendingUp, FileDown, CalendarIcon, Save, BarChart3,
   CreditCard
 } from "lucide-react";
@@ -37,15 +37,11 @@ const DashboardPage = () => {
   const [monthlyGoals, setMonthlyGoals] = useState<MonthlyGoals>(defaultMonthlyGoals);
   const [saved, setSaved] = useState(true);
 
-  // FUNÇÃO CRUCIAL: Sincroniza com o Supabase ao abrir
   useEffect(() => {
     const initApp = async () => {
       try {
         setIsSyncing(true);
-        // Tenta buscar os dados da nuvem (Supabase)
         await syncFromCloud();
-        
-        // Após baixar, carrega nos estados locais
         setData(loadDailyData(selectedDate));
         setDailyGoals(loadDailyGoals());
         setMonthlyGoals(loadMonthlyGoals());
@@ -58,7 +54,6 @@ const DashboardPage = () => {
     initApp();
   }, []);
 
-  // Atualiza os dados quando a data selecionada muda
   useEffect(() => {
     if (!isSyncing) {
       setData(loadDailyData(selectedDate));
@@ -85,7 +80,6 @@ const DashboardPage = () => {
     toast.success("Dados salvos e sincronizados!");
   }, [selectedDate, data]);
 
-  // Tela de Carregamento (Importante para o celular ter tempo de baixar os dados)
   if (isSyncing) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background text-center p-4">
@@ -240,14 +234,10 @@ const DashboardPage = () => {
                   icon={<CreditCard className="w-5 h-5" />} onChange={(v) => update("gastoTrafego", v)}
                   colorClass="text-destructive" />
               </div>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+              <div className="grid grid-cols-2 lg:grid-cols-2 gap-4 mt-4">
                 <MetricCard label="Seguidores" value={data.seguidores} meta={dailyGoals.seguidores}
                   icon={<Instagram className="w-5 h-5" />} onChange={(v) => update("seguidores", v)}
                   onMetaChange={(v) => updateDG("seguidores", v)} />
-                <MetricCard label="C. Iniciadas" value={data.conversasIniciadas}
-                  icon={<MessageCircle className="w-5 h-5" />} onChange={(v) => update("conversasIniciadas", v)} />
-                <MetricCard label="C. Respondidas" value={data.conversasRespondidas}
-                  icon={<MessageSquare className="w-5 h-5" />} onChange={(v) => update("conversasRespondidas", v)} />
                 <MetricCard label="Agendamentos" value={data.agendamentos} meta={dailyGoals.agendamentos}
                   icon={<CalendarCheck className="w-5 h-5" />} onChange={(v) => update("agendamentos", v)}
                   onMetaChange={(v) => updateDG("agendamentos", v)} />
