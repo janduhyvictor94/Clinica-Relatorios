@@ -26,17 +26,56 @@ function formatCurrency(val: number): string {
   return val.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// Nova função para calcular o CAC com segurança (evitar divisão por zero)
 function calcCac(gasto: number, agendamentos: number): string {
   if (!agendamentos || agendamentos === 0) return "0,00";
   return formatCurrency(gasto / agendamentos);
+}
+
+// ==========================================
+// FUNÇÃO NOVA: DESENHA GRÁFICOS INTELIGENTES
+// ==========================================
+function drawVisualBar(
+  doc: jsPDF, x: number, y: number, width: number, height: number, 
+  val: number, goal: number, label: string, 
+  formatFn: (v: number) => string = String
+) {
+  doc.setFontSize(9);
+  doc.setTextColor(80, 80, 80);
+  doc.text(label, x, y);
+
+  // Texto da direita (Ex: 10 / Meta: 20)
+  const textVal = goal > 0 ? `${formatFn(val)} / Meta: ${formatFn(goal)}` : `${formatFn(val)}`;
+  doc.text(textVal, x + width, y, { align: "right" });
+
+  const barY = y + 2;
+  
+  // Fundo da barra (Cinza claro)
+  doc.setFillColor(240, 240, 240);
+  doc.rect(x, barY, width, height, "F");
+
+  // Preenchimento da barra
+  if (val > 0) {
+    // Se tem meta, calcula a %. Se não tem meta, barra fica cheia (100%)
+    const percentage = goal > 0 ? Math.min(val / goal, 1) : 1;
+    
+    // Verde se bateu a meta ou se não tem meta definida. Cinza Escuro se estiver no caminho.
+    if (goal === 0 || val >= goal) {
+      doc.setFillColor(16, 185, 129); // Verde Sucesso
+    } else {
+      doc.setFillColor(40, 40, 40); // Cinza Escuro Premium
+    }
+    
+    doc.rect(x, barY, width * percentage, height, "F");
+  }
+  
+  return barY + height + 8; 
 }
 
 export function generateDailyPDF(options: ReportOptions) {
   const { title, subtitle, data, dailyGoals, monthlyGoals } = options;
   const doc = new jsPDF();
 
-  // Header (Preto e Cinza Escuro)
+  // Header
   doc.setFontSize(20);
   doc.setTextColor(0, 0, 0); 
   doc.text("Clínica Bruna Braga", 105, 20, { align: "center" });
@@ -50,8 +89,26 @@ export function generateDailyPDF(options: ReportOptions) {
   doc.setLineWidth(0.4);
   doc.line(20, 38, 190, 38);
 
-  // Atendimentos
   let y = 45;
+
+  // ------------------------------------------
+  // GRÁFICOS VISUAIS (Desempenho Diário)
+  // ------------------------------------------
+  doc.setFontSize(13);
+  doc.setTextColor(30, 30, 30);
+  doc.text("Visão Geral das Metas", 20, y);
+  y += 6;
+  
+  y = drawVisualBar(doc, 20, y, 170, 5, data.totalPacientes, dailyGoals.totalPacientes, "Pacientes");
+  y = drawVisualBar(doc, 20, y, 170, 5, data.faturamento, dailyGoals.faturamento, "Faturamento (R$)", formatCurrency);
+  y = drawVisualBar(doc, 20, y, 170, 5, data.agendamentos, dailyGoals.agendamentos, "Agendamentos");
+  y = drawVisualBar(doc, 20, y, 170, 5, data.seguidores, dailyGoals.seguidores, "Novos Seguidores");
+  
+  y += 5;
+
+  // ------------------------------------------
+  // TABELAS DETALHADAS
+  // ------------------------------------------
   doc.setFontSize(13);
   doc.setTextColor(30, 30, 30);
   doc.text("Atendimentos", 20, y);
@@ -94,6 +151,7 @@ export function generateDailyPDF(options: ReportOptions) {
 
   // Procedimentos
   if (data.procedimentos) {
+    if (y > 250) { doc.addPage(); y = 20; }
     doc.setFontSize(13);
     doc.text("Procedimentos", 20, y);
     y += 6;
@@ -106,7 +164,7 @@ export function generateDailyPDF(options: ReportOptions) {
   }
 
   // Comercial e Tráfego
-  if (y > 200) { doc.addPage(); y = 20; }
+  if (y > 180) { doc.addPage(); y = 20; }
   doc.setFontSize(13);
   doc.text("Comercial e Tráfego", 20, y);
   y += 3;
@@ -165,22 +223,45 @@ export function generatePeriodPDF(
   doc.setLineWidth(0.4);
   doc.line(20, 32, 277, 32);
 
-  // Tabela de Resumo (Adicionado Seguidores, Gasto e CAC)
+  let y = 40;
+
+  // ------------------------------------------
+  // GRÁFICOS VISUAIS (Médias do Período vs Metas Diárias)
+  // ------------------------------------------
+  doc.setFontSize(13);
+  doc.setTextColor(30, 30, 30);
+  doc.text("Desempenho Visual (Média Diária vs Meta Diária)", 20, y);
+  y += 7;
+
+  const dias = Math.max(entries.length, 1);
+  
+  y = drawVisualBar(doc, 20, y, 257, 5, totals.totalPacientes / dias, dailyGoals.totalPacientes, "Pacientes (Média/Dia)", (v) => v.toFixed(1));
+  y = drawVisualBar(doc, 20, y, 257, 5, totals.faturamento / dias, dailyGoals.faturamento, "Faturamento (Média/Dia) - R$", formatCurrency);
+  y = drawVisualBar(doc, 20, y, 257, 5, totals.agendamentos / dias, dailyGoals.agendamentos, "Agendamentos (Média/Dia)", (v) => v.toFixed(1));
+
+  y += 5;
+
+  // Tabela de Resumo
+  doc.setFontSize(13);
+  doc.setTextColor(30, 30, 30);
+  doc.text("Resumo Consolidado", 20, y);
+  y += 3;
+
   autoTable(doc, {
-    startY: 38,
+    startY: y,
     head: [["Métrica", "Total do Período", "Média Diária"]],
     body: [
       ["Pacientes", String(totals.totalPacientes), avg(totals.totalPacientes, entries.length)],
       ["Desmarcaram", String(totals.desmarcaram), avg(totals.desmarcaram, entries.length)],
       ["Novos", String(totals.novos), avg(totals.novos, entries.length)],
       ["Recorrentes", String(totals.recorrentes), avg(totals.recorrentes, entries.length)],
-      ["Faturamento (R$)", formatCurrency(totals.faturamento), formatCurrency(totals.faturamento / Math.max(entries.length, 1))],
+      ["Faturamento (R$)", formatCurrency(totals.faturamento), formatCurrency(totals.faturamento / dias)],
       ["Leads Totais", String(totals.leadsTotal), avg(totals.leadsTotal, entries.length)],
       ["Seguidores", String(totals.seguidores), avg(totals.seguidores, entries.length)],
       ["Conversas Iniciadas", String(totals.conversasIniciadas), avg(totals.conversasIniciadas, entries.length)],
       ["Conversas Respondidas", String(totals.conversasRespondidas), avg(totals.conversasRespondidas, entries.length)],
       ["Agendamentos", String(totals.agendamentos), avg(totals.agendamentos, entries.length)],
-      ["Gasto Tráfego (R$)", formatCurrency(totals.gastoTrafego), formatCurrency(totals.gastoTrafego / Math.max(entries.length, 1))],
+      ["Gasto Tráfego (R$)", formatCurrency(totals.gastoTrafego), formatCurrency(totals.gastoTrafego / dias)],
       ["CAC Consolidado (R$)", calcCac(totals.gastoTrafego, totals.agendamentos), "-"],
     ],
     theme: "grid",
@@ -189,10 +270,10 @@ export function generatePeriodPDF(
     alternateRowStyles: { fillColor: [248, 248, 248] },
   });
 
-  let y = (doc as any).lastAutoTable.finalY + 10;
+  y = (doc as any).lastAutoTable.finalY + 10;
 
-  // Detalhamento Diário (Adicionado Seg, Gasto e CAC - com abreviações para caber elegante)
-  if (y > 140) { doc.addPage("landscape"); y = 20; }
+  // Detalhamento Diário
+  if (y > 130) { doc.addPage("landscape"); y = 20; }
   doc.setFontSize(13);
   doc.setTextColor(30, 30, 30);
   doc.text("Detalhamento Diário", 20, y);
@@ -202,7 +283,6 @@ export function generatePeriodPDF(
     startY: y,
     head: [["Data", "Pac.", "Nov.", "Fat. (R$)", "Leads", "Camp.", "Org.", "Seg.", "C.Ini", "C.Res", "Agend.", "Gasto (R$)", "CAC (R$)"]],
     body: entries.map((e) => {
-      // Formata a data de '2024-05-10' para '10/05/24' para ficar compacto
       const shortDate = format(new Date(e.date + "T12:00:00"), "dd/MM/yy");
       return [
         shortDate, 
